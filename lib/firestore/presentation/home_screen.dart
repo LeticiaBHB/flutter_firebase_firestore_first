@@ -11,9 +11,14 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final List<Listin> listListins = [];
+  List<Listin> listListins = [];
   FirebaseFirestore firestore = FirebaseFirestore.instance;
 
+  @override
+  void initState(){
+    refresh();
+    super.initState();
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -34,19 +39,24 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(fontSize: 18),
               ),
             )
-          : ListView(
-              children: List.generate(
-                listListins.length,
-                (index) {
-                  Listin model = listListins[index];
-                  return ListTile(
-                    leading: const Icon(Icons.list_alt_rounded),
-                    title: Text(model.name),
-                    subtitle: Text(model.id),
-                  );
-                },
+          : RefreshIndicator(
+        onRefresh: (){
+          return refresh();
+        },
+            child: ListView(
+                children: List.generate(
+                  listListins.length,
+                  (index) {
+                    Listin model = listListins[index];
+                    return ListTile(
+                      leading: const Icon(Icons.list_alt_rounded),
+                      title: Text(model.name),
+                      subtitle: Text(model.id),
+                    );
+                  },
+                ),
               ),
-            ),
+          ),
     );
   }
 
@@ -100,14 +110,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   ElevatedButton(
                       onPressed: () {
+                        //criar um objeto listin com as informações
                        Listin listin = Listin(
                            id: const Uuid().v1(),
                            name: nameController.text
                        );
+                       //salvar no firestore
                       firestore
                           .collection('listins')
                           .doc(listin.id)
                           .set(listin.toMap());
+                      //atualizar a lista
+                       refresh();
+                      // fechar o modal
+                        Navigator.pop(context);
                        },
                       child: Text(confirmationButton)),
                 ],
@@ -117,5 +133,15 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       },
     );
+  }
+  refresh() async {
+    List<Listin> temp= [];
+    QuerySnapshot<Map<String,dynamic>> snapshot = await firestore.collection('listins').get();
+    for(var doc in snapshot.docs){
+      temp.add(Listin.fromMap(doc.data()));
+    }
+    setState((){
+      listListins = temp;
+    });
   }
 }
